@@ -6,6 +6,7 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 
 import time
+import json
 import zlib
 import base64
 import pickle
@@ -47,14 +48,14 @@ class AuthPage(webapp2.RequestHandler):
             
             if not pkl_req or not pkl_sig:
                 return self.error(400)
-            
-            enc_req = pickle.loads(pkl_req)
-            enc_sig = pickle.loads(pkl_sig)
-            
+
+            enc_req = base64.b64decode(pkl_req)
+            enc_sig = json.loads(pkl_sig)
+
             if not enc_req or not enc_sig:
                 return self.error(400)
             
-            req = PRIVATE_KEY.decrypt(enc_req)
+            req = PRIVATE_KEY.decrypt((enc_req,))
             sig = SHA256.new(req).digest()
             
             if not REMOTE_KEY.verify(sig, enc_sig):
@@ -108,11 +109,11 @@ class AuthPage(webapp2.RequestHandler):
         rsp = pickle.dumps(response_data)
         sig = SHA256.new(rsp).digest()
         
-        enc_rsp = REMOTE_KEY.encrypt(rsp, RNG)
+        enc_rsp = REMOTE_KEY.encrypt(rsp, RNG)[0]
         enc_sig = PRIVATE_KEY.sign(sig, RNG)
         
-        pkl_rsp = pickle.dumps(enc_rsp)
-        pkl_sig = pickle.dumps(enc_sig)
+        pkl_rsp = base64.b64encode(enc_rsp)
+        pkl_sig = json.dumps(enc_sig)
         
         gzp_rsp = zlib.compress(pkl_rsp, 9)
         gzp_sig = zlib.compress(pkl_sig, 9)
